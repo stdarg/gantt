@@ -266,6 +266,8 @@
         .close-btn { background: none; border: none; color: #e0e0e0; font-size: 1.5rem; cursor: pointer; }
         .modal-form { display: flex; flex-direction: column; gap: 15px; }
         .modal-form .form-group { width: 100%; }
+        .vacation-row { display: flex; gap: 8px; align-items: center; margin-bottom: 6px; }
+        .modal-form .vacation-row input[type="date"] { width: auto; flex: 1; }
         .modal-form input, .modal-form select { width: 100%; }
         .checkbox-group {
             display: flex;
@@ -395,7 +397,8 @@
             <div class="modal-form">
                 <input type="hidden" id="engineerEditId">
                 <div class="form-group"><label>Name</label><input type="text" id="engineerName"></div>
-                <div class="form-group"><label>Vacation Days</label><input type="number" id="engineerVacation" value="0" min="0"></div>
+                <div class="form-group"><label>Vacation Dates</label><div id="vacationRanges"></div><button type="button" class="btn-secondary btn-small" onclick="addVacationRow()">+ Add Vacation</button></div>
+                <div class="form-group"><label>Vacation days without dates (ignored once dates are entered)</label><input type="number" id="engineerVacation" value="0" min="0"></div>
                 <button class="btn-primary" onclick="saveEngineer()">Save</button>
             </div>
         </div>
@@ -484,19 +487,29 @@ function isWeekend(dateStr) { const dow = dayOfWeek(dateStr); return dow === 0 |
 function isHoliday(dateStr) { return projectData.holidays.some(h => h.date === dateStr); }
 function isWorkDay(dateStr) { return !isWeekend(dateStr) && !isHoliday(dateStr); }
 
-function nextWorkDay(dateStr) {
+function isOnVacation(engId, dateStr) {
+    const eng = projectData.engineers.find(e => e.id === engId);
+    return (eng?.vacations || []).some(v => v.start <= dateStr && dateStr <= v.end);
+}
+
+// Shared work pauses while any of its engineers is away.
+function isWorkDayFor(dateStr, engIds) {
+    return isWorkDay(dateStr) && !engIds.some(engId => isOnVacation(engId, dateStr));
+}
+
+function nextWorkDay(dateStr, engIds = []) {
     let d = dateStr;
-    while (!isWorkDay(d)) d = addDays(d, 1);
+    while (!isWorkDayFor(d, engIds)) d = addDays(d, 1);
     return d;
 }
 
-function addWorkDays(startDateStr, numDays) {
+function addWorkDays(startDateStr, numDays, engIds = []) {
     if (numDays <= 0) return startDateStr;
-    let d = nextWorkDay(startDateStr);
+    let d = nextWorkDay(startDateStr, engIds);
     let count = 1;
     while (count < numDays) {
         d = addDays(d, 1);
-        if (isWorkDay(d)) count++;
+        if (isWorkDayFor(d, engIds)) count++;
     }
     return d;
 }
@@ -594,7 +607,7 @@ function calculateSchedule() {
                     if (engFree > earliest) earliest = engFree;
                 }
             }
-            earliest = nextWorkDay(earliest);
+            earliest = nextWorkDay(earliest, item.engineers);
             if (!bestItem || earliest < bestStart || (earliest === bestStart && (item.taskIdx < bestItem.taskIdx || (item.taskIdx === bestItem.taskIdx && item.subIdx < bestItem.subIdx)))) {
                 bestItem = item; bestStart = earliest;
             }
@@ -602,7 +615,7 @@ function calculateSchedule() {
         if (!bestItem) break;
         
         const effectiveDays = Math.max(1, Math.ceil(bestItem.estDays / (bestItem.numEng * prodPct)));
-        const endDate = addWorkDays(bestStart, effectiveDays);
+        const endDate = addWorkDays(bestStart, effectiveDays, bestItem.engineers);
         bestItem.scheduled = true;
         bestItem.ref.scheduledStart = bestStart;
         bestItem.ref.scheduledEnd = endDate;
@@ -626,9 +639,20 @@ function calculateSchedule() {
     });
 }
 
+// Dated vacations replace the legacy undated vacationDays count once any are entered.
+function getVacationWorkDays(eng) {
+    if (!eng.vacations?.length) return eng.vacationDays || 0;
+    let count = 0, d = projectData.startDate;
+    while (d <= projectData.endDate) {
+        if (isWorkDay(d) && isOnVacation(eng.id, d)) count++;
+        d = addDays(d, 1);
+    }
+    return count;
+}
+
 function getEngineerCapacity(eng) {
     const totalDays = countWorkDays(projectData.startDate, projectData.endDate);
-    const available = totalDays - (eng.vacationDays || 0);
+    const available = totalDays - getVacationWorkDays(eng);
     const prodPct = (100 - projectData.unplannedPct - projectData.meetingsPct - projectData.supportPct) / 100;
     return Math.max(0, available * prodPct);
 }
@@ -748,7 +772,31 @@ function openEngineerModal(editId = null) {
         document.getElementById('engineerName').value = '';
         document.getElementById('engineerVacation').value = 0;
     }
+    const vacations = editId ? (projectData.engineers.find(e => e.id === editId).vacations || []) : [];
+    document.getElementById('vacationRanges').innerHTML = '';
+    vacations.forEach(v => addVacationRow(v.start, v.end));
     openModal('engineerModal');
+}
+
+function addVacationRow(start = '', end = '') {
+    const row = document.createElement('div');
+    row.className = 'vacation-row';
+    row.innerHTML = `<input type="date" class="vacation-start" value="${start}"><span>to</span><input type="date" class="vacation-end" value="${end}"><button type="button" class="btn-danger btn-small" onclick="this.parentElement.remove()">X</button>`;
+    document.getElementById('vacationRanges').appendChild(row);
+}
+
+// Returns null (after alerting) when a row is incomplete or backwards.
+function readVacationRows() {
+    const vacations = [];
+    for (const row of document.querySelectorAll('#vacationRanges .vacation-row')) {
+        const start = row.querySelector('.vacation-start').value;
+        const end = row.querySelector('.vacation-end').value;
+        if (!start && !end) continue;
+        if (!start || !end) { alert('Each vacation needs a start and end date'); return null; }
+        if (end < start) { alert('Vacation end date is before its start date'); return null; }
+        vacations.push({ start, end });
+    }
+    return vacations.sort((a, b) => a.start.localeCompare(b.start));
 }
 
 function openHolidayModal() {
@@ -819,8 +867,10 @@ function saveEngineer() {
     const name = document.getElementById('engineerName').value.trim();
     const vac = parseInt(document.getElementById('engineerVacation').value) || 0;
     if (!name) { alert('Enter name'); return; }
-    if (editId) { const eng = projectData.engineers.find(e => e.id === editId); eng.name = name; eng.vacationDays = vac; }
-    else { projectData.engineers.push({ id: 'eng_' + Date.now(), name, vacationDays: vac, color: engineerColors[projectData.engineers.length % engineerColors.length] }); }
+    const vacations = readVacationRows();
+    if (!vacations) return;
+    if (editId) { const eng = projectData.engineers.find(e => e.id === editId); eng.name = name; eng.vacationDays = vac; eng.vacations = vacations; }
+    else { projectData.engineers.push({ id: 'eng_' + Date.now(), name, vacationDays: vac, vacations, color: engineerColors[projectData.engineers.length % engineerColors.length] }); }
     closeModal('engineerModal'); renderAll();
 }
 
@@ -893,7 +943,7 @@ function renderEngineerList() {
     if (projectData.engineers.length === 0) { c.innerHTML = '<p style="color:#b0b0b0;text-align:center;">No engineers</p>'; return; }
     c.innerHTML = projectData.engineers.map(e => {
         const cap = getEngineerCapacity(e), asgn = getEngineerAssignedDays(e.id);
-        return `<div class="engineer-item"><div class="engineer-info"><span class="color-dot" style="background:${e.color}"></span><span class="engineer-name">${e.name}</span><div class="engineer-vacation">${e.vacationDays||0} vac | ${cap.toFixed(0)} cap | ${formatDays(asgn)} asgn</div></div><div><button class="btn-secondary btn-small" onclick="openEngineerModal('${e.id}')">Edit</button><button class="btn-danger btn-small" onclick="deleteEngineer('${e.id}')">X</button></div></div>`;
+        return `<div class="engineer-item"><div class="engineer-info"><span class="color-dot" style="background:${e.color}"></span><span class="engineer-name">${e.name}</span><div class="engineer-vacation">${getVacationWorkDays(e)} vac | ${cap.toFixed(0)} cap | ${formatDays(asgn)} asgn</div></div><div><button class="btn-secondary btn-small" onclick="openEngineerModal('${e.id}')">Edit</button><button class="btn-danger btn-small" onclick="deleteEngineer('${e.id}')">X</button></div></div>`;
     }).join('');
 }
 
@@ -1239,7 +1289,7 @@ function importFromJSON(event) {
             projectData = imp;
             projectData.engineers = projectData.engineers || []; projectData.holidays = projectData.holidays || []; projectData.tasks = projectData.tasks || [];
             projectData.unplannedPct = projectData.unplannedPct ?? 10; projectData.meetingsPct = projectData.meetingsPct ?? 15; projectData.supportPct = projectData.supportPct ?? 10;
-            projectData.engineers.forEach((e, i) => { e.vacationDays = e.vacationDays || 0; e.color = e.color || engineerColors[i % engineerColors.length]; });
+            projectData.engineers.forEach((e, i) => { e.vacationDays = e.vacationDays || 0; e.vacations = e.vacations || []; e.color = e.color || engineerColors[i % engineerColors.length]; });
             projectData.tasks.forEach(t => { t.subtasks = t.subtasks || []; t.assignedEngineers = t.assignedEngineers || []; t.estimateDays = t.estimateDays || 0; t.numEngineers = t.numEngineers || 1; t.subtasks.forEach(s => { s.assignedEngineers = s.assignedEngineers || []; s.estimateDays = s.estimateDays || 0; s.numEngineers = s.numEngineers || 1; }); });
             document.getElementById('startDate').value = projectData.startDate || ''; document.getElementById('endDate').value = projectData.endDate || '';
             document.getElementById('unplannedPct').value = projectData.unplannedPct; document.getElementById('meetingsPct').value = projectData.meetingsPct; document.getElementById('supportPct').value = projectData.supportPct;

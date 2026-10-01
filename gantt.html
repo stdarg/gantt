@@ -205,7 +205,12 @@
         .gantt-bar.subtask-bar { background: linear-gradient(135deg, #81d4fa, #4fc3f7); }
         .gantt-bar.engineer-bar { background: linear-gradient(135deg, #66bb6a, #43a047); }
         .gantt-bar.overrun { background: linear-gradient(135deg, #ef5350, #e53935); }
-        .gantt-cell { position: relative; height: 28px; min-width: 80px; }
+        /* Labels and timeline are separate tables, so rows only line up if both use the same explicit heights.
+           38px fits the tallest label content (collapse toggle + OVERRUN badge). */
+        .gantt-table thead th { height: 34px; }
+        .gantt-table tbody td { height: 38px; }
+        .gantt-cell { position: relative; min-width: 80px; }
+        .gantt-cell .gantt-bar { top: calc(50% - 10px); }
         .gantt-cell.overrun-zone { background: rgba(239, 83, 80, 0.1); }
         .task-row { background: rgba(0, 0, 0, 0.2); }
         .task-row td { background: rgba(0, 0, 0, 0.2); }
@@ -1145,7 +1150,7 @@ function renderBar(item, week, barClass) {
         deadlineMarker = `<div class="deadline-marker" style="left:${deadlinePos}%"></div>`;
     }
     
-    return `<td class="${cellClass}">${deadlineMarker}<div class="gantt-bar ${barClass}${isOverrun ? ' overrun' : ''}" style="position:absolute;left:${left}%;width:${Math.min(width, 100-left)}%;top:4px;"></div></td>`;
+    return `<td class="${cellClass}">${deadlineMarker}<div class="gantt-bar ${barClass}${isOverrun ? ' overrun' : ''}" style="position:absolute;left:${left}%;width:${Math.min(width, 100-left)}%;"></div></td>`;
 }
 
 function renderEngWeek(assignments, week, color) {
@@ -1171,7 +1176,7 @@ function renderEngWeek(assignments, week, color) {
     }
     
     if (!hasWork) return `<td class="${cellClass}">${deadlineMarker}</td>`;
-    return `<td class="${cellClass}">${deadlineMarker}<div class="gantt-bar" style="background:${color};position:absolute;left:5%;width:90%;top:4px;"></div></td>`;
+    return `<td class="${cellClass}">${deadlineMarker}<div class="gantt-bar" style="background:${color};position:absolute;left:5%;width:90%;"></div></td>`;
 }
 
 function renderSummary() {

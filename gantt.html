@@ -419,7 +419,7 @@
                 <input type="hidden" id="taskEditId">
                 <div class="form-group"><label>Task Name</label><input type="text" id="taskName"></div>
                 <div class="form-group"><label>Est. Days (no subtasks)</label><input type="number" id="taskEstimate" value="0" min="0"></div>
-                <div class="form-group"><label># Engineers (no subtasks)</label><input type="number" id="taskEngineers" value="1" min="1" max="10"></div>
+                <div class="form-group"><label># Engineers (no subtasks, if none assigned)</label><input type="number" id="taskEngineers" value="1" min="1" max="10"></div>
                 <div class="form-group"><label>Assign Engineers</label><div class="checkbox-group" id="taskEngineerCheckboxes"></div></div>
                 <button class="btn-primary" onclick="saveTask()">Save</button>
             </div>
@@ -434,7 +434,7 @@
                 <input type="hidden" id="subtaskParentId">
                 <div class="form-group"><label>Subtask Name</label><input type="text" id="subtaskName"></div>
                 <div class="form-group"><label>Est. Days</label><input type="number" id="subtaskEstimate" value="1" min="1"></div>
-                <div class="form-group"><label># Engineers</label><input type="number" id="subtaskEngineers" value="1" min="1" max="10"></div>
+                <div class="form-group"><label># Engineers (if none assigned)</label><input type="number" id="subtaskEngineers" value="1" min="1" max="10"></div>
                 <div class="form-group"><label>Assign Engineers</label><div class="checkbox-group" id="subtaskEngineerCheckboxes"></div></div>
                 <div class="form-group"><label>Depends On</label><select id="subtaskDependency"><option value="">None</option></select></div>
                 <button class="btn-primary" onclick="saveSubtask()">Save</button>
@@ -560,14 +560,14 @@ function calculateSchedule() {
                 workItems.push({
                     id: sub.id, taskIdx: ti, subIdx: si, taskId: task.id, isSubtask: true, ref: sub,
                     dependsOn: sub.dependsOn || null, engineers: sub.assignedEngineers || [],
-                    numEng: sub.numEngineers || 1, estDays: sub.estimateDays || 1, scheduled: false
+                    numEng: getEngineerCount(sub), estDays: sub.estimateDays || 1, scheduled: false
                 });
             });
         } else if (task.estimateDays > 0) {
             workItems.push({
                 id: task.id, taskIdx: ti, subIdx: -1, taskId: task.id, isSubtask: false, ref: task,
                 dependsOn: null, engineers: task.assignedEngineers || [],
-                numEng: task.numEngineers || 1, estDays: task.estimateDays || 1, scheduled: false
+                numEng: getEngineerCount(task), estDays: task.estimateDays || 1, scheduled: false
             });
         }
     });
@@ -631,6 +631,13 @@ function getEngineerCapacity(eng) {
     const available = totalDays - (eng.vacationDays || 0);
     const prodPct = (100 - projectData.unplannedPct - projectData.meetingsPct - projectData.supportPct) / 100;
     return Math.max(0, available * prodPct);
+}
+
+// Assigned engineers are the source of truth for how many people split the work;
+// numEngineers only matters for work nobody is assigned to yet.
+function getEngineerCount(item) {
+    const assignedCount = (item.assignedEngineers || []).length;
+    return assignedCount > 0 ? assignedCount : (item.numEngineers || 1);
 }
 
 function getTaskTotalDays(task) {
@@ -820,8 +827,8 @@ function saveTask() {
     const editId = document.getElementById('taskEditId').value;
     const name = document.getElementById('taskName').value.trim();
     const est = parseInt(document.getElementById('taskEstimate').value) || 0;
-    const numEng = parseInt(document.getElementById('taskEngineers').value) || 1;
     const engs = getSelectedEngs('taskEngineerCheckboxes');
+    const numEng = engs.length || parseInt(document.getElementById('taskEngineers').value) || 1;
     if (!name) { alert('Enter name'); return; }
     if (editId) { const task = projectData.tasks.find(t => t.id === editId); task.name = name; task.estimateDays = est; task.numEngineers = numEng; task.assignedEngineers = engs; }
     else { projectData.tasks.push({ id: 'task_' + Date.now(), name, estimateDays: est, numEngineers: numEng, assignedEngineers: engs, subtasks: [] }); }
@@ -833,8 +840,8 @@ function saveSubtask() {
     const editId = document.getElementById('subtaskEditId').value;
     const name = document.getElementById('subtaskName').value.trim();
     const est = parseInt(document.getElementById('subtaskEstimate').value) || 1;
-    const numEng = parseInt(document.getElementById('subtaskEngineers').value) || 1;
     const engs = getSelectedEngs('subtaskEngineerCheckboxes');
+    const numEng = engs.length || parseInt(document.getElementById('subtaskEngineers').value) || 1;
     const dep = document.getElementById('subtaskDependency').value || null;
     if (!name) { alert('Enter name'); return; }
     const task = projectData.tasks.find(t => t.id === parentId);
@@ -896,7 +903,7 @@ function renderTaskList() {
         return `<div class="task-item"><div class="task-header"><span class="task-name">${task.name}</span>${task.overrun ? '<span class="overrun-label">OVERRUN</span>' : ''}</div><div class="task-estimate">${task.subtasks?.length > 0 ? task.subtasks.length + ' subtasks' : task.estimateDays + ' days'} (${totalDays}d total)</div><div class="date-range-info">${task.scheduledStart ? formatDate(task.scheduledStart) : '-'} - ${task.scheduledEnd ? formatDate(task.scheduledEnd) : '-'}</div>${engNames.length > 0 ? `<div class="assigned-engineers">${engNames.map(n=>`<span class="engineer-tag">${n}</span>`).join('')}</div>` : ''}<div class="subtask-list">${(task.subtasks||[]).map(sub => {
             const subEngs = (sub.assignedEngineers||[]).map(id => projectData.engineers.find(x => x.id === id)?.name).filter(Boolean);
             const depName = sub.dependsOn ? (task.subtasks.find(s => s.id === sub.dependsOn)?.name || '?') : null;
-            return `<div class="subtask-item"><div class="subtask-header"><span class="subtask-name">${sub.name}</span><div><button class="btn-secondary btn-small" onclick="openSubtaskModal('${task.id}','${sub.id}')">Edit</button><button class="btn-danger btn-small" onclick="deleteSubtask('${task.id}','${sub.id}')">X</button></div></div><div class="task-estimate">${sub.estimateDays}d | ${sub.numEngineers} eng</div><div class="date-range-info">${sub.scheduledStart ? formatDate(sub.scheduledStart) : '-'} - ${sub.scheduledEnd ? formatDate(sub.scheduledEnd) : '-'}</div>${depName ? `<div class="dependency-info">After: ${depName}</div>` : ''}${subEngs.length > 0 ? `<div class="assigned-engineers">${subEngs.map(n=>`<span class="engineer-tag">${n}</span>`).join('')}</div>` : ''}</div>`;
+            return `<div class="subtask-item"><div class="subtask-header"><span class="subtask-name">${sub.name}</span><div><button class="btn-secondary btn-small" onclick="openSubtaskModal('${task.id}','${sub.id}')">Edit</button><button class="btn-danger btn-small" onclick="deleteSubtask('${task.id}','${sub.id}')">X</button></div></div><div class="task-estimate">${sub.estimateDays}d | ${getEngineerCount(sub)} eng</div><div class="date-range-info">${sub.scheduledStart ? formatDate(sub.scheduledStart) : '-'} - ${sub.scheduledEnd ? formatDate(sub.scheduledEnd) : '-'}</div>${depName ? `<div class="dependency-info">After: ${depName}</div>` : ''}${subEngs.length > 0 ? `<div class="assigned-engineers">${subEngs.map(n=>`<span class="engineer-tag">${n}</span>`).join('')}</div>` : ''}</div>`;
         }).join('')}</div><div style="margin-top:10px;display:flex;gap:5px;"><button class="btn-primary btn-small" onclick="openSubtaskModal('${task.id}')">+ Subtask</button><button class="btn-secondary btn-small" onclick="openTaskModal('${task.id}')">Edit</button><button class="btn-danger btn-small" onclick="deleteTask('${task.id}')">Delete</button></div></div>`;
     }).join('');
 }

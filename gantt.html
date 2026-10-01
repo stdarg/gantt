@@ -142,7 +142,9 @@
         .gantt-wrapper { position: relative; width: 100%; }
         .gantt-scroll-top { overflow-x: auto; overflow-y: hidden; height: 12px; margin-bottom: 5px; }
         .gantt-scroll-top-inner { height: 1px; }
-        .gantt-scroll-main { overflow-x: auto; overflow-y: visible; }
+        /* Any overflow makes this the sticky header's scroll container, so it has to scroll vertically too
+           for the header to stay visible. */
+        .gantt-scroll-main { overflow: auto; max-height: 75vh; }
         .gantt-table-container { display: flex; min-width: fit-content; }
         .gantt-fixed { flex-shrink: 0; position: sticky; left: 0; z-index: 20; background: #1a1a2e; }
         .gantt-fixed table { border-collapse: collapse; }
@@ -156,11 +158,11 @@
             font-size: 0.85rem;
             white-space: nowrap;
         }
-        .gantt-table th { background: rgba(79, 195, 247, 0.2); color: #4fc3f7; position: sticky; top: 0; z-index: 10; }
+        .gantt-table th { background: linear-gradient(rgba(79, 195, 247, 0.2), rgba(79, 195, 247, 0.2)), #1a1a2e; color: #4fc3f7; position: sticky; top: 0; z-index: 10; }
         .gantt-fixed .gantt-table th { z-index: 25; }
         .gantt-table th.week-header { text-align: center; min-width: 80px; font-size: 0.75rem; }
-        .gantt-table th.week-header.overrun-week { background: rgba(239, 83, 80, 0.3); color: #ff8a80; }
-        .gantt-table th.week-header.deadline-week { background: rgba(255, 193, 7, 0.3); color: #ffd54f; }
+        .gantt-table th.week-header.overrun-week { background: linear-gradient(rgba(239, 83, 80, 0.3), rgba(239, 83, 80, 0.3)), #1a1a2e; color: #ff8a80; }
+        .gantt-table th.week-header.deadline-week { background: linear-gradient(rgba(255, 193, 7, 0.3), rgba(255, 193, 7, 0.3)), #1a1a2e; color: #ffd54f; }
         
         /* Task cell - EXPANDED WIDTH */
         .gantt-table .task-cell { 
@@ -297,6 +299,7 @@
         ::-webkit-scrollbar { width: 8px; height: 8px; }
         ::-webkit-scrollbar-track { background: rgba(0, 0, 0, 0.2); border-radius: 4px; }
         ::-webkit-scrollbar-thumb { background: rgba(79, 195, 247, 0.5); border-radius: 4px; }
+        ::-webkit-scrollbar-corner { background: transparent; }
     </style>
 </head>
 <body>

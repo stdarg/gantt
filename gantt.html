@@ -878,6 +878,9 @@ function saveHoliday() {
     const name = document.getElementById('holidayName').value.trim();
     const date = document.getElementById('holidayDate').value;
     if (!name || !date) { alert('Enter name and date'); return; }
+    if (isWeekend(date)) { alert('That date is a weekend, so it is already a day off'); return; }
+    const existing = projectData.holidays.find(h => h.date === date);
+    if (existing) { alert(`${existing.name} is already on that date`); return; }
     projectData.holidays.push({ id: 'hol_' + Date.now(), name, date });
     closeModal('holidayModal'); renderAll();
 }

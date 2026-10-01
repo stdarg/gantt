@@ -936,7 +936,6 @@ function deleteSubtask(taskId, subId) {
 
 function renderAll() {
     calculateSchedule();
-    collapsedItems.clear();
     renderEngineerList();
     renderHolidayList();
     renderTaskList();
@@ -979,6 +978,7 @@ function renderGantt() {
     const weeks = getWeeks(projectData.startDate, projectData.endDate, latestEnd);
     if (weeks.length === 0) { document.getElementById('ganttChart').innerHTML = '<p style="color:#b0b0b0;text-align:center;">Invalid range</p>'; return; }
     if (currentView === 'task') renderTaskView(weeks); else renderEngineerView(weeks);
+    updateRowVisibility();
     setupScrollSync();
 }
 
@@ -1300,6 +1300,7 @@ function importFromJSON(event) {
             projectData.tasks.forEach(t => { t.subtasks = t.subtasks || []; t.assignedEngineers = t.assignedEngineers || []; t.estimateDays = t.estimateDays || 0; t.numEngineers = t.numEngineers || 1; t.subtasks.forEach(s => { s.assignedEngineers = s.assignedEngineers || []; s.estimateDays = s.estimateDays || 0; s.numEngineers = s.numEngineers || 1; }); });
             document.getElementById('startDate').value = projectData.startDate || ''; document.getElementById('endDate').value = projectData.endDate || '';
             document.getElementById('unplannedPct').value = projectData.unplannedPct; document.getElementById('meetingsPct').value = projectData.meetingsPct; document.getElementById('supportPct').value = projectData.supportPct;
+            collapsedItems.clear();
             renderAll(); alert('Loaded!');
         } catch (err) { alert('Error: ' + err.message); }
     };

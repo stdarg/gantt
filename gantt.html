@@ -645,14 +645,23 @@ function getTaskTotalDays(task) {
     return task.estimateDays || 0;
 }
 
+// Estimates are total effort split across the engineers doing the work.
+function getEngineerShareDays(item) {
+    return (item.estimateDays || 0) / getEngineerCount(item);
+}
+
 function getEngineerAssignedDays(engId) {
     let total = 0;
     projectData.tasks.forEach(task => {
         if (task.subtasks && task.subtasks.length > 0) {
-            task.subtasks.forEach(sub => { if (sub.assignedEngineers?.includes(engId)) total += sub.estimateDays || 0; });
-        } else if (task.assignedEngineers?.includes(engId)) total += task.estimateDays || 0;
+            task.subtasks.forEach(sub => { if (sub.assignedEngineers?.includes(engId)) total += getEngineerShareDays(sub); });
+        } else if (task.assignedEngineers?.includes(engId)) total += getEngineerShareDays(task);
     });
     return total;
+}
+
+function formatDays(days) {
+    return String(Math.round(days * 10) / 10);
 }
 
 function toggleCollapse(parentId, event) {
@@ -884,7 +893,7 @@ function renderEngineerList() {
     if (projectData.engineers.length === 0) { c.innerHTML = '<p style="color:#b0b0b0;text-align:center;">No engineers</p>'; return; }
     c.innerHTML = projectData.engineers.map(e => {
         const cap = getEngineerCapacity(e), asgn = getEngineerAssignedDays(e.id);
-        return `<div class="engineer-item"><div class="engineer-info"><span class="color-dot" style="background:${e.color}"></span><span class="engineer-name">${e.name}</span><div class="engineer-vacation">${e.vacationDays||0} vac | ${cap.toFixed(0)} cap | ${asgn} asgn</div></div><div><button class="btn-secondary btn-small" onclick="openEngineerModal('${e.id}')">Edit</button><button class="btn-danger btn-small" onclick="deleteEngineer('${e.id}')">X</button></div></div>`;
+        return `<div class="engineer-item"><div class="engineer-info"><span class="color-dot" style="background:${e.color}"></span><span class="engineer-name">${e.name}</span><div class="engineer-vacation">${e.vacationDays||0} vac | ${cap.toFixed(0)} cap | ${formatDays(asgn)} asgn</div></div><div><button class="btn-secondary btn-small" onclick="openEngineerModal('${e.id}')">Edit</button><button class="btn-danger btn-small" onclick="deleteEngineer('${e.id}')">X</button></div></div>`;
     }).join('');
 }
 
@@ -1030,7 +1039,7 @@ function renderEngineerView(weeks) {
         fixedRows.push(`<tr class="task-row" data-row-id="${rowId}" data-is-child="false">
             <td class="task-cell"><div class="task-cell-content">${toggleHtml}<span class="color-dot" style="background:${eng.color}"></span><span class="task-name-text" title="${escapeHtml(eng.name)}"><strong>${escapeHtml(eng.name)}</strong></span></div></td>
             <td class="info-cell">${cap.toFixed(0)}d</td>
-            <td class="info-cell">${asgn}d</td>
+            <td class="info-cell">${formatDays(asgn)}d</td>
             <td class="info-cell">-</td>
             <td class="info-cell">-</td>
         </tr>`);
@@ -1047,7 +1056,7 @@ function renderEngineerView(weeks) {
             fixedRows.push(`<tr class="subtask-row" data-row-id="${assignRowId}" data-parent-id="${eng.id}" data-is-child="true">
                 <td class="task-cell"><div class="task-cell-content"><span class="task-name-text" title="${escapedDisplayName}">${escapedDisplayName}</span></div></td>
                 <td class="info-cell">-</td>
-                <td class="info-cell">${a.days}d</td>
+                <td class="info-cell">${formatDays(a.days)}d</td>
                 <td class="info-cell">${a.start ? shortDate(a.start) : '-'}</td>
                 <td class="info-cell">${a.end ? shortDate(a.end) : '-'}</td>
             </tr>`);
@@ -1095,7 +1104,7 @@ function getEngAssignments(engId) {
                     list.push({ 
                         taskName: task.name, 
                         subName: sub.name, 
-                        days: sub.estimateDays || 0, 
+                        days: getEngineerShareDays(sub), 
                         start: sub.scheduledStart, 
                         end: sub.scheduledEnd, 
                         scheduledStart: sub.scheduledStart, 
@@ -1107,7 +1116,7 @@ function getEngAssignments(engId) {
             list.push({ 
                 taskName: task.name, 
                 subName: null, 
-                days: task.estimateDays || 0, 
+                days: getEngineerShareDays(task), 
                 start: task.scheduledStart, 
                 end: task.scheduledEnd, 
                 scheduledStart: task.scheduledStart, 

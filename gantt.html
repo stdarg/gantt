@@ -142,9 +142,7 @@
         .gantt-wrapper { position: relative; width: 100%; }
         .gantt-scroll-top { overflow-x: auto; overflow-y: hidden; height: 12px; margin-bottom: 5px; }
         .gantt-scroll-top-inner { height: 1px; }
-        /* Any overflow makes this the sticky header's scroll container, so it has to scroll vertically too
-           for the header to stay visible. */
-        .gantt-scroll-main { overflow: auto; max-height: 75vh; }
+        .gantt-scroll-main { overflow-x: auto; overflow-y: visible; }
         .gantt-table-container { display: flex; min-width: fit-content; }
         .gantt-fixed { flex-shrink: 0; position: sticky; left: 0; z-index: 20; background: #1a1a2e; }
         .gantt-fixed table { border-collapse: collapse; }

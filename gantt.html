@@ -849,14 +849,14 @@ function openSubtaskModal(parentId, editId = null) {
 function renderEngCheckboxes(containerId) {
     const c = document.getElementById(containerId);
     if (projectData.engineers.length === 0) { c.innerHTML = '<p class="no-engineers-msg">Add engineers first</p>'; return; }
-    c.innerHTML = projectData.engineers.map(e => `<div class="checkbox-item"><input type="checkbox" id="${containerId}_${e.id}" value="${e.id}"><label for="${containerId}_${e.id}">${e.name}</label></div>`).join('');
+    c.innerHTML = projectData.engineers.map(e => `<div class="checkbox-item"><input type="checkbox" id="${containerId}_${e.id}" value="${e.id}"><label for="${containerId}_${e.id}">${escapeHtml(e.name)}</label></div>`).join('');
 }
 
 function renderDepOptions(parentId, excludeId) {
     const sel = document.getElementById('subtaskDependency');
     const task = projectData.tasks.find(t => t.id === parentId);
     let opts = '<option value="">None</option>';
-    if (task?.subtasks) task.subtasks.forEach(s => { if (s.id !== excludeId) opts += `<option value="${s.id}">${s.name}</option>`; });
+    if (task?.subtasks) task.subtasks.forEach(s => { if (s.id !== excludeId) opts += `<option value="${s.id}">${escapeHtml(s.name)}</option>`; });
     sel.innerHTML = opts;
 }
 
@@ -946,14 +946,14 @@ function renderEngineerList() {
     if (projectData.engineers.length === 0) { c.innerHTML = '<p style="color:#b0b0b0;text-align:center;">No engineers</p>'; return; }
     c.innerHTML = projectData.engineers.map(e => {
         const cap = getEngineerCapacity(e), asgn = getEngineerAssignedDays(e.id);
-        return `<div class="engineer-item"><div class="engineer-info"><span class="color-dot" style="background:${e.color}"></span><span class="engineer-name">${e.name}</span><div class="engineer-vacation">${getVacationWorkDays(e)} vac | ${cap.toFixed(0)} cap | ${formatDays(asgn)} asgn</div></div><div><button class="btn-secondary btn-small" onclick="openEngineerModal('${e.id}')">Edit</button><button class="btn-danger btn-small" onclick="deleteEngineer('${e.id}')">X</button></div></div>`;
+        return `<div class="engineer-item"><div class="engineer-info"><span class="color-dot" style="background:${e.color}"></span><span class="engineer-name">${escapeHtml(e.name)}</span><div class="engineer-vacation">${getVacationWorkDays(e)} vac | ${cap.toFixed(0)} cap | ${formatDays(asgn)} asgn</div></div><div><button class="btn-secondary btn-small" onclick="openEngineerModal('${e.id}')">Edit</button><button class="btn-danger btn-small" onclick="deleteEngineer('${e.id}')">X</button></div></div>`;
     }).join('');
 }
 
 function renderHolidayList() {
     const c = document.getElementById('holidayList');
     if (projectData.holidays.length === 0) { c.innerHTML = '<p style="color:#b0b0b0;text-align:center;">No holidays</p>'; return; }
-    c.innerHTML = [...projectData.holidays].sort((a,b) => a.date.localeCompare(b.date)).map(h => `<div class="holiday-item"><div><strong>${h.name}</strong><div style="font-size:0.8rem;color:#b0b0b0">${formatDate(h.date)}</div></div><button class="btn-danger btn-small" onclick="deleteHoliday('${h.id}')">X</button></div>`).join('');
+    c.innerHTML = [...projectData.holidays].sort((a,b) => a.date.localeCompare(b.date)).map(h => `<div class="holiday-item"><div><strong>${escapeHtml(h.name)}</strong><div style="font-size:0.8rem;color:#b0b0b0">${formatDate(h.date)}</div></div><button class="btn-danger btn-small" onclick="deleteHoliday('${h.id}')">X</button></div>`).join('');
 }
 
 function renderTaskList() {
@@ -962,10 +962,10 @@ function renderTaskList() {
     c.innerHTML = projectData.tasks.map(task => {
         const engNames = (task.assignedEngineers||[]).map(id => projectData.engineers.find(x => x.id === id)?.name).filter(Boolean);
         const totalDays = getTaskTotalDays(task);
-        return `<div class="task-item"><div class="task-header"><span class="task-name">${task.name}</span>${task.overrun ? '<span class="overrun-label">OVERRUN</span>' : ''}</div><div class="task-estimate">${task.subtasks?.length > 0 ? task.subtasks.length + ' subtasks' : task.estimateDays + ' days'} (${totalDays}d total)</div><div class="date-range-info">${task.scheduledStart ? formatDate(task.scheduledStart) : '-'} - ${task.scheduledEnd ? formatDate(task.scheduledEnd) : '-'}</div>${engNames.length > 0 ? `<div class="assigned-engineers">${engNames.map(n=>`<span class="engineer-tag">${n}</span>`).join('')}</div>` : ''}<div class="subtask-list">${(task.subtasks||[]).map(sub => {
+        return `<div class="task-item"><div class="task-header"><span class="task-name">${escapeHtml(task.name)}</span>${task.overrun ? '<span class="overrun-label">OVERRUN</span>' : ''}</div><div class="task-estimate">${task.subtasks?.length > 0 ? task.subtasks.length + ' subtasks' : task.estimateDays + ' days'} (${totalDays}d total)</div><div class="date-range-info">${task.scheduledStart ? formatDate(task.scheduledStart) : '-'} - ${task.scheduledEnd ? formatDate(task.scheduledEnd) : '-'}</div>${engNames.length > 0 ? `<div class="assigned-engineers">${engNames.map(n=>`<span class="engineer-tag">${escapeHtml(n)}</span>`).join('')}</div>` : ''}<div class="subtask-list">${(task.subtasks||[]).map(sub => {
             const subEngs = (sub.assignedEngineers||[]).map(id => projectData.engineers.find(x => x.id === id)?.name).filter(Boolean);
             const depName = sub.dependsOn ? (task.subtasks.find(s => s.id === sub.dependsOn)?.name || '?') : null;
-            return `<div class="subtask-item"><div class="subtask-header"><span class="subtask-name">${sub.name}</span><div><button class="btn-secondary btn-small" onclick="openSubtaskModal('${task.id}','${sub.id}')">Edit</button><button class="btn-danger btn-small" onclick="deleteSubtask('${task.id}','${sub.id}')">X</button></div></div><div class="task-estimate">${sub.estimateDays}d | ${getEngineerCount(sub)} eng</div><div class="date-range-info">${sub.scheduledStart ? formatDate(sub.scheduledStart) : '-'} - ${sub.scheduledEnd ? formatDate(sub.scheduledEnd) : '-'}</div>${depName ? `<div class="dependency-info">After: ${depName}</div>` : ''}${subEngs.length > 0 ? `<div class="assigned-engineers">${subEngs.map(n=>`<span class="engineer-tag">${n}</span>`).join('')}</div>` : ''}</div>`;
+            return `<div class="subtask-item"><div class="subtask-header"><span class="subtask-name">${escapeHtml(sub.name)}</span><div><button class="btn-secondary btn-small" onclick="openSubtaskModal('${task.id}','${sub.id}')">Edit</button><button class="btn-danger btn-small" onclick="deleteSubtask('${task.id}','${sub.id}')">X</button></div></div><div class="task-estimate">${sub.estimateDays}d | ${getEngineerCount(sub)} eng</div><div class="date-range-info">${sub.scheduledStart ? formatDate(sub.scheduledStart) : '-'} - ${sub.scheduledEnd ? formatDate(sub.scheduledEnd) : '-'}</div>${depName ? `<div class="dependency-info">After: ${escapeHtml(depName)}</div>` : ''}${subEngs.length > 0 ? `<div class="assigned-engineers">${subEngs.map(n=>`<span class="engineer-tag">${escapeHtml(n)}</span>`).join('')}</div>` : ''}</div>`;
         }).join('')}</div><div style="margin-top:10px;display:flex;gap:5px;"><button class="btn-primary btn-small" onclick="openSubtaskModal('${task.id}')">+ Subtask</button><button class="btn-secondary btn-small" onclick="openTaskModal('${task.id}')">Edit</button><button class="btn-danger btn-small" onclick="deleteTask('${task.id}')">Delete</button></div></div>`;
     }).join('');
 }
@@ -994,7 +994,8 @@ function setupScrollSync() {
 function escapeHtml(text) {
     const div = document.createElement('div');
     div.textContent = text;
-    return div.innerHTML;
+    // Names also go into attribute values (title="..."), so quotes must be escaped too.
+    return div.innerHTML.replace(/"/g, '&quot;').replace(/'/g, '&#39;');
 }
 
 function renderTaskView(weeks) {

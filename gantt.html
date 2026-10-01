@@ -175,15 +175,13 @@
         }
         .gantt-table .task-cell .task-name-text {
             display: inline-block;
-            max-width: 280px;
+            min-width: 0;
             overflow: hidden;
             text-overflow: ellipsis;
             white-space: nowrap;
             vertical-align: middle;
         }
-        .gantt-table .subtask-row .task-cell .task-name-text {
-            max-width: 260px;
-        }
+        .gantt-table .task-cell-content .overrun-label { margin-left: 6px; flex-shrink: 0; }
         .gantt-table .task-cell .task-name-text:hover {
             overflow: visible;
             white-space: normal;
@@ -948,7 +946,7 @@ function renderTaskView(weeks) {
         const escapedName = escapeHtml(task.name);
         
         fixedRows.push(`<tr class="task-row" data-row-id="${rowId}" data-is-child="false">
-            <td class="task-cell">${toggleHtml}<span class="task-name-text" title="${escapedName}"><strong>${escapedName}</strong></span>${task.overrun ? ' <span class="overrun-label">OVERRUN</span>' : ''}</td>
+            <td class="task-cell"><div class="task-cell-content">${toggleHtml}<span class="task-name-text" title="${escapedName}"><strong>${escapedName}</strong></span>${task.overrun ? '<span class="overrun-label">OVERRUN</span>' : ''}</div></td>
             <td class="info-cell">${totalDays}</td>
             <td class="info-cell">${task.scheduledStart ? shortDate(task.scheduledStart) : '-'}</td>
             <td class="info-cell">${task.scheduledEnd ? shortDate(task.scheduledEnd) : '-'}</td>
@@ -964,7 +962,7 @@ function renderTaskView(weeks) {
                 const escapedSubName = escapeHtml(sub.name);
                 
                 fixedRows.push(`<tr class="subtask-row" data-row-id="${subRowId}" data-parent-id="${task.id}" data-is-child="true">
-                    <td class="task-cell"><span class="task-name-text" title="${escapedSubName}">${escapedSubName}</span></td>
+                    <td class="task-cell"><div class="task-cell-content"><span class="task-name-text" title="${escapedSubName}">${escapedSubName}</span></div></td>
                     <td class="info-cell">${sub.estimateDays || 0}</td>
                     <td class="info-cell">${sub.scheduledStart ? shortDate(sub.scheduledStart) : '-'}</td>
                     <td class="info-cell">${sub.scheduledEnd ? shortDate(sub.scheduledEnd) : '-'}</td>
@@ -1023,7 +1021,7 @@ function renderEngineerView(weeks) {
             : '<span class="no-collapse-spacer"></span>';
         
         fixedRows.push(`<tr class="task-row" data-row-id="${rowId}" data-is-child="false">
-            <td class="task-cell">${toggleHtml}<span class="color-dot" style="background:${eng.color}"></span><span class="task-name-text" title="${escapeHtml(eng.name)}"><strong>${escapeHtml(eng.name)}</strong></span></td>
+            <td class="task-cell"><div class="task-cell-content">${toggleHtml}<span class="color-dot" style="background:${eng.color}"></span><span class="task-name-text" title="${escapeHtml(eng.name)}"><strong>${escapeHtml(eng.name)}</strong></span></div></td>
             <td class="info-cell">${cap.toFixed(0)}d</td>
             <td class="info-cell">${asgn}d</td>
             <td class="info-cell">-</td>
@@ -1040,7 +1038,7 @@ function renderEngineerView(weeks) {
             const escapedDisplayName = escapeHtml(displayName);
             
             fixedRows.push(`<tr class="subtask-row" data-row-id="${assignRowId}" data-parent-id="${eng.id}" data-is-child="true">
-                <td class="task-cell"><span class="task-name-text" title="${escapedDisplayName}">${escapedDisplayName}</span></td>
+                <td class="task-cell"><div class="task-cell-content"><span class="task-name-text" title="${escapedDisplayName}">${escapedDisplayName}</span></div></td>
                 <td class="info-cell">-</td>
                 <td class="info-cell">${a.days}d</td>
                 <td class="info-cell">${a.start ? shortDate(a.start) : '-'}</td>
